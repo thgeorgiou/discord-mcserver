@@ -1,0 +1,22 @@
+{
+  "name": "discord-mcserver",
+  "version": "0.1.0",
+  "description": "Manage a Minecraft server from discord",
+  "main": "index.ts",
+  "repository": "https://github.com/sakisds/discord-mcserver",
+  "author": "Thanasis Georgiou <contact@thgeorgiou.com>",
+  "license": "GPL-3.0",
+  "private": false,
+  "dependencies": {
+    "ts-node": "^8.6.2",
+    "typescript": "^3.8.3"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.22.0",
+    "@typescript-eslint/parser": "^2.22.0",
+    "eslint": "^6.8.0",
+    "eslint-config-prettier": "^6.10.0",
+    "eslint-plugin-prettier": "^3.1.2",
+    "prettier": "^1.19.1"
+  }
+}
