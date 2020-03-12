@@ -105,3 +105,20 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+## Terraform
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# SSH Keys
+terraform/droplet-keys/*
