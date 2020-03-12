@@ -1,5 +1,4 @@
 import * as util from "util";
-import { makeLogger } from "./logging";
 const exec = util.promisify(require("child_process").exec);
 
 /** Possible server states */
@@ -16,7 +15,6 @@ export interface ServerState {
 export class MinecraftServer {
   private workdir: string;
   private status: ServerStatus;
-  private logger(message: string): void;
   private ipv4?: string;
 
   /**
@@ -26,7 +24,6 @@ export class MinecraftServer {
   constructor(workdir: string) {
     this.workdir = workdir;
     this.refresh();
-    this.logger = makeLogger("Server");
   }
 
   /** Read the state from terraform */
