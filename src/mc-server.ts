@@ -31,8 +31,19 @@ export class MinecraftServer {
     console.log("[Server] Refreshing state from terraform:");
 
     // Run terraform and parse output
-    const output = (await exec("terraform show -json", { cwd: this.workdir })).stdout;
-    const json = JSON.parse(output);
+    let json;
+    try {
+      const output = (await exec("terraform show -json", { cwd: this.workdir })).stdout;
+      json = JSON.parse(output);
+    } catch (err) {
+      console.error("Could not refresh state from terraform!");
+      console.error(err);
+
+      this.status = "unknown";
+      this.ipv4 = undefined;
+      return;
+    }
+
     console.log(json);
     const droplet = (json.values.root_module.resources as any[]).find(i => i.name === "minecraft_server");
 
@@ -70,7 +81,14 @@ export class MinecraftServer {
     this.status = "starting" as ServerStatus;
 
     // Make the calls to terraform
-    const output = await exec("terraform apply -auto-approve -input=false", { cwd: this.workdir });
+    try {
+      await exec("terraform apply -auto-approve -input=false", { cwd: this.workdir });
+    } catch (err) {
+      console.error("Could not execute terraform apply!");
+      console.error(err);
+
+      return "error";
+    }
 
     // Refresh status again
     await this.refresh();
@@ -96,9 +114,16 @@ export class MinecraftServer {
     this.status = "stopping" as ServerStatus;
 
     // Make the calls to terraform
-    await exec('terraform destroy -auto-approve -input=false -target="digitalocean_droplet.minecraft_server"', {
-      cwd: this.workdir,
-    });
+    try {
+      await exec('terraform destroy -auto-approve -input=false -target="digitalocean_droplet.minecraft_server"', {
+        cwd: this.workdir,
+      });
+    } catch (err) {
+      console.error("Could not execute terraform destroy!");
+      console.error(err);
+
+      return "error";
+    }
 
     // Refresh status again
     await this.refresh();
