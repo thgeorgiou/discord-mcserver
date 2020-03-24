@@ -20,5 +20,7 @@ COPY --from=hashicorp/terraform:0.12.21 /usr/local/share/ca-certificates/ /usr/l
 
 ENV MCSERVER_TERRAFORM /app/infrastructure
 
+RUN apk add ca-certificates
+
 RUN yarn install --production
 CMD ["yarn", "run", "start:prod"]
