@@ -4,6 +4,7 @@ import {
   CreateDropletDto,
   CreateDropletResponseDto,
   Droplet,
+  GetAccountBalance,
   GetDropletResponseDto,
 } from "./digital-ocean.types";
 
@@ -48,7 +49,7 @@ export class DigitalOceanService {
     this.volumeId = configService.get<string>("DIGITALOCEAN_BLOCK_STORAGE");
 
     this.headers = {
-      Authentication: `Bearer ${this.authToken}`,
+      Authorization: `Bearer ${this.authToken}`,
       "Content-Type": "application/json",
     };
   }
@@ -99,7 +100,9 @@ export class DigitalOceanService {
   public async getDroplet(id: number): Promise<Droplet | undefined> {
     this.logger.log(`Fetching droplet info for ID = ${id}`);
     const response = await this.httpService
-      .get(`${DIGITALOCEAN_API_URL}/droplets/${id.toString()}`)
+      .get(`${DIGITALOCEAN_API_URL}/droplets/${id.toString()}`, {
+        headers: this.headers,
+      })
       .toPromise();
 
     if (response.status !== 200) {
@@ -121,7 +124,9 @@ export class DigitalOceanService {
   public async deleteDroplet(id: number): Promise<boolean> {
     this.logger.log(`Deleting droplet with ID = ${id}`);
     const response = await this.httpService
-      .delete(`${DIGITALOCEAN_API_URL}/droplets/${id.toString()}`)
+      .delete(`${DIGITALOCEAN_API_URL}/droplets/${id.toString()}`, {
+        headers: this.headers,
+      })
       .toPromise();
 
     if (response.status !== 204) {
@@ -129,5 +134,18 @@ export class DigitalOceanService {
       return false;
     }
     return true;
+  }
+
+  /**
+   * Fetches the current account balance.
+   */
+  public async getAccountBalance(): Promise<GetAccountBalance> {
+    this.logger.log("Getting account balance.");
+    const response = await this.httpService
+      .get(`${DIGITALOCEAN_API_URL}/customers/my/balance`, {
+        headers: this.headers,
+      })
+      .toPromise();
+    return response.data as GetAccountBalance;
   }
 }

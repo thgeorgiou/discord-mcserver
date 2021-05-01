@@ -1,11 +1,13 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Client, Message } from "discord.js";
+import { Client, Message, MessageEmbed } from "discord.js";
+import { DigitalOceanService } from "./digital-ocean.service";
 
 /** Available bot commands */
 export enum BotCommand {
   PING = "ping",
   HELP = "help",
+  BALANCE = "balance",
 }
 
 /** Command handler, one for each possible value of `BotCommand` */
@@ -24,7 +26,10 @@ export class DiscordBotService implements OnApplicationBootstrap {
   /** Discord API client */
   private readonly client: Client;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly doService: DigitalOceanService,
+  ) {
     this.botToken = configService.get<string>("DISCORD_BOT_TOKEN");
     this.channelId = configService.get<string>("DISCORD_BOT_CHANNEL_ID");
     this.client = new Client();
@@ -65,6 +70,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
       case BotCommand.HELP:
         this.helpCommand(message);
         break;
+      case BotCommand.BALANCE:
+        this.balanceCommand(message);
+        break;
       default:
         this.logger.log(`Ignoring unknown command ${commandString}.`);
         message.channel.send(`:warning: Unknown command "${commandString}"`);
@@ -82,6 +90,28 @@ export class DiscordBotService implements OnApplicationBootstrap {
     **Bot commands**:
     - \`help\`: Displays this message.
     - \`ping\`: Responds with "Pong!".
+    - \`balance\`: Display the current account balance ($).
     `);
+  }
+
+  private async balanceCommand(message: Message) {
+    const balance = await this.doService.getAccountBalance();
+    const embed = new MessageEmbed()
+      .setTitle("Account Balance :moneybag:")
+      .addFields(
+        {
+          name: "Current month usage",
+          value: `$${balance.month_to_date_usage}`,
+        },
+        {
+          name: "Current month balance",
+          value: `$${balance.month_to_date_balance}`,
+        },
+        {
+          name: "Total balance",
+          value: `$${balance.account_balance}`,
+        },
+      );
+    message.channel.send(embed);
   }
 }
