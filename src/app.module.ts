@@ -1,10 +1,11 @@
-import { Module } from "@nestjs/common";
+import { HttpModule, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { DigitalOceanService } from "./digital-ocean.service";
 import { DiscordBotService } from "./discord-bot.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), HttpModule],
   controllers: [],
-  providers: [DiscordBotService],
+  providers: [DiscordBotService, DigitalOceanService],
 })
 export class AppModule {}
