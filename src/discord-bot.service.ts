@@ -2,7 +2,10 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Client, Message, MessageEmbed } from "discord.js";
 import { DigitalOceanService } from "./digital-ocean.service";
-import { MinecraftServerService } from "./minecraft-server.service";
+import {
+  MinecraftServerService,
+  ServerStatus,
+} from "./minecraft-server.service";
 
 /** Available bot commands */
 export enum BotCommand {
@@ -12,6 +15,8 @@ export enum BotCommand {
   STATUS = "status",
   START = "start",
   STOP = "stop",
+  SET_STATUS = "setStatus",
+  SSH = "ssh",
 }
 
 /** Command handler, one for each possible value of `BotCommand` */
@@ -66,10 +71,12 @@ export class DiscordBotService implements OnApplicationBootstrap {
 
     // Grab command name (regex to remove encoded mention)
     const commandString = message.content.replace(/<@!\d+>/g, "").trim();
+    const commandName = commandString.split(" ")[0];
+    const commandArguments = commandName.replace(commandName, "").trim();
     this.logger.log(`Handling command ${commandString}`);
 
     // Handle command
-    switch (commandString as BotCommand) {
+    switch (commandName as BotCommand) {
       case BotCommand.PING:
         this.pingCommand(message);
         break;
@@ -87,6 +94,12 @@ export class DiscordBotService implements OnApplicationBootstrap {
         break;
       case BotCommand.STOP:
         this.stopCommand(message);
+        break;
+      case BotCommand.SET_STATUS:
+        this.setStatusCommand(message, commandArguments);
+        break;
+      case BotCommand.SSH:
+        this.sshCommand(message, commandArguments);
         break;
       default:
         this.logger.log(`Ignoring unknown command ${commandString}.`);
@@ -109,6 +122,8 @@ export class DiscordBotService implements OnApplicationBootstrap {
     - \`status\`: Returns the current server status (w/ IPv4)
     - \`start\`: Starts a new minecraft server.
     - \`stop\`: Stops the minecraft server if it is running.
+    - \`setStatus\`: **DEBUG** Forcefully change current status.
+    - \`ssh\`: Run a command on the server with SSH
     `);
   }
 
@@ -153,13 +168,13 @@ export class DiscordBotService implements OnApplicationBootstrap {
 
     switch (status.status) {
       case "up":
-        embed.setColor("green");
+        embed.setColor("GREEN");
         break;
       case "down":
-        embed.setColor("red");
+        embed.setColor("RED");
         break;
       default:
-        embed.setColor("yellow");
+        embed.setColor("ORANGE");
     }
 
     message.channel.send(embed);
@@ -190,5 +205,40 @@ export class DiscordBotService implements OnApplicationBootstrap {
     }
 
     message.channel.send("Stopped server!");
+  }
+
+  private async setStatusCommand(message: Message, args: string) {
+    if (
+      args !== "up" &&
+      args !== "down" &&
+      args !== "starting" &&
+      args !== "stopping" &&
+      args !== "weird"
+    ) {
+      message.channel.send(`Unknown status ${args}`);
+    }
+    this.minecraftService.forceStatus(args as ServerStatus);
+    message.channel.send(`Set status to ${args}`);
+  }
+
+  private async sshCommand(message: Message, args: string) {
+    const result = await this.minecraftService.runSSHCommand(
+      args,
+      undefined,
+      true,
+    );
+    message.channel.send(`
+    Exit code: \`${result.code}\`
+
+    STDOUT:
+    \`\`\`
+    ${result.stdout}
+    \`\`\`
+
+    STDERR:
+    \`\`\`
+    ${result.stderr}
+    \`\`\`
+    `);
   }
 }
