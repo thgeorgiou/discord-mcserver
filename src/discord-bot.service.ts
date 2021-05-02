@@ -2,12 +2,16 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Client, Message, MessageEmbed } from "discord.js";
 import { DigitalOceanService } from "./digital-ocean.service";
+import { MinecraftServerService } from "./minecraft-server.service";
 
 /** Available bot commands */
 export enum BotCommand {
   PING = "ping",
   HELP = "help",
   BALANCE = "balance",
+  STATUS = "status",
+  START = "start",
+  STOP = "stop",
 }
 
 /** Command handler, one for each possible value of `BotCommand` */
@@ -29,6 +33,7 @@ export class DiscordBotService implements OnApplicationBootstrap {
   constructor(
     configService: ConfigService,
     private readonly doService: DigitalOceanService,
+    private readonly minecraftService: MinecraftServerService,
   ) {
     this.botToken = configService.get<string>("DISCORD_BOT_TOKEN");
     this.channelId = configService.get<string>("DISCORD_BOT_CHANNEL_ID");
@@ -61,6 +66,7 @@ export class DiscordBotService implements OnApplicationBootstrap {
 
     // Grab command name (regex to remove encoded mention)
     const commandString = message.content.replace(/<@!\d+>/g, "").trim();
+    this.logger.log(`Handling command ${commandString}`);
 
     // Handle command
     switch (commandString as BotCommand) {
@@ -72,6 +78,15 @@ export class DiscordBotService implements OnApplicationBootstrap {
         break;
       case BotCommand.BALANCE:
         this.balanceCommand(message);
+        break;
+      case BotCommand.STATUS:
+        this.statusCommand(message);
+        break;
+      case BotCommand.START:
+        this.startCommand(message);
+        break;
+      case BotCommand.STOP:
+        this.stopCommand(message);
         break;
       default:
         this.logger.log(`Ignoring unknown command ${commandString}.`);
@@ -91,6 +106,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
     - \`help\`: Displays this message.
     - \`ping\`: Responds with "Pong!".
     - \`balance\`: Display the current account balance ($).
+    - \`status\`: Returns the current server status (w/ IPv4)
+    - \`start\`: Starts a new minecraft server.
+    - \`stop\`: Stops the minecraft server if it is running.
     `);
   }
 
@@ -113,5 +131,64 @@ export class DiscordBotService implements OnApplicationBootstrap {
         },
       );
     message.channel.send(embed);
+  }
+
+  private async statusCommand(message: Message) {
+    const status = this.minecraftService.getStatus();
+    const embed = new MessageEmbed();
+    embed.setTitle("Minecraft Server Status").addFields(
+      {
+        name: "Status",
+        value: status.status,
+      },
+      {
+        name: "IPv4",
+        value: status.ipv4,
+      },
+      {
+        name: "Droplet ID",
+        value: status.dropletId,
+      },
+    );
+
+    switch (status.status) {
+      case "up":
+        embed.setColor("green");
+        break;
+      case "down":
+        embed.setColor("red");
+        break;
+      default:
+        embed.setColor("yellow");
+    }
+
+    message.channel.send(embed);
+  }
+
+  private async startCommand(message: Message) {
+    const callback = () => {
+      this.statusCommand(message);
+    };
+    message.channel.send("Starting server...");
+    try {
+      await this.minecraftService.createServer(callback);
+    } catch (err) {
+      message.channel.send("Error in server creation!");
+      message.channel.send(err);
+    }
+  }
+
+  private async stopCommand(message: Message) {
+    message.channel.send("Stopping server...");
+
+    try {
+      await this.minecraftService.stopServer();
+    } catch (err) {
+      message.channel.send("Error in server deletion!");
+      message.channel.send(err);
+      return;
+    }
+
+    message.channel.send("Stopped server!");
   }
 }
