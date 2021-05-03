@@ -221,6 +221,13 @@ export class DiscordBotService implements OnApplicationBootstrap {
     ssh: {
       help: "Runs a command on the Droplet using SSH (**dangerous**)",
       method: async (message, args) => {
+        if (this.minecraftService.getStatus().status === "down") {
+          message.channel.send(
+            ":warning: Cannot execute anything, server is down",
+          );
+          return;
+        }
+
         const result = await this.minecraftService.runSSHCommand(
           args,
           undefined,
