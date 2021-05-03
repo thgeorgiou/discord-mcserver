@@ -159,6 +159,14 @@ export class MinecraftServerService {
     return result;
   }
 
+  /** Runs a minecraft server command using SSH and mcrcon */
+  public async runRCONCommand(command: string) {
+    const result = await this.runSSHCommand(
+      `/mnt/discord_mcserver/minecraft/mcrcon -p localrcon '${command}'`,
+    );
+    return result.stdout.replace("[0m", "");
+  }
+
   /** Change the current droplet */
   public setDroplet(newId: number | undefined) {
     this.dropletId = newId;

@@ -202,6 +202,21 @@ export class DiscordBotService implements OnApplicationBootstrap {
         message.channel.send("Stopped server!");
       },
     },
+    players: {
+      help: "Displays which players are currently logged in",
+      method: async (message) => {
+        const response = await this.minecraftService.runRCONCommand("list");
+        message.channel.send(`**Players:**\n${response}`);
+      },
+    },
+    rcon: {
+      help: "Runs a minecraft server command",
+      ownerOnly: true,
+      method: async (message, args) => {
+        const response = await this.minecraftService.runRCONCommand(args);
+        message.channel.send(response);
+      },
+    },
     setStatus: {
       help: "Overrides the current status (**dangerous**)",
       method: (message, args) => {
