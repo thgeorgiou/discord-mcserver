@@ -217,6 +217,15 @@ export class DiscordBotService implements OnApplicationBootstrap {
         message.channel.send(response);
       },
     },
+    scare: {
+      help: "Players a creeper hiss to scare someone",
+      method: async (message, args) => {
+        const response = await this.minecraftService.runRCONCommand(
+          `playsound entity.drowned.shoot hostile ${args} ~0 ~0 ~0 5000`,
+        );
+        message.channel.send(response);
+      },
+    },
     setStatus: {
       help: "Overrides the current status (**dangerous**)",
       method: (message, args) => {
