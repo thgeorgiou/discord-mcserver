@@ -194,7 +194,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
     const callback = () => {
       this.statusCommand(message);
     };
-    message.channel.send("Starting server...");
+    message.channel.send(
+      "Starting server... This will take approximately 3 minutes.",
+    );
     try {
       await this.minecraftService.createServer(callback);
     } catch (err) {
