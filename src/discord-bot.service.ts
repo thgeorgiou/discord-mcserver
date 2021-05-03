@@ -17,6 +17,8 @@ export enum BotCommand {
   STOP = "stop",
   SET_STATUS = "setStatus",
   SSH = "ssh",
+  SET_DROPLET = "setDroplet",
+  RUN_INIT = "runInitScript",
 }
 
 /** Command handler, one for each possible value of `BotCommand` */
@@ -72,7 +74,7 @@ export class DiscordBotService implements OnApplicationBootstrap {
     // Grab command name (regex to remove encoded mention)
     const commandString = message.content.replace(/<@!\d+>/g, "").trim();
     const commandName = commandString.split(" ")[0];
-    const commandArguments = commandName.replace(commandName, "").trim();
+    const commandArguments = commandString.replace(commandName, "").trim();
     this.logger.log(`Handling command ${commandString}`);
 
     // Handle command
@@ -101,6 +103,12 @@ export class DiscordBotService implements OnApplicationBootstrap {
       case BotCommand.SSH:
         this.sshCommand(message, commandArguments);
         break;
+      case BotCommand.SET_DROPLET:
+        this.setDropletCommand(message, commandArguments);
+        break;
+      case BotCommand.RUN_INIT:
+        this.runInitCommand(message);
+        break;
       default:
         this.logger.log(`Ignoring unknown command ${commandString}.`);
         message.channel.send(`:warning: Unknown command "${commandString}"`);
@@ -122,8 +130,10 @@ export class DiscordBotService implements OnApplicationBootstrap {
     - \`status\`: Returns the current server status (w/ IPv4)
     - \`start\`: Starts a new minecraft server.
     - \`stop\`: Stops the minecraft server if it is running.
-    - \`setStatus\`: **DEBUG** Forcefully change current status.
-    - \`ssh\`: Run a command on the server with SSH
+    - \`setStatus\`: Forcefully change current status. **Very dangerous!**
+    - \`ssh\`: Run a command on the server with SSH **Very dangerous!**
+    - \`setDroplet\`: Sets the current droplet ID **Very dangerous!**
+    - \`runInitScript\`: Runs the initialization script again **Very dangerous!**
     `);
   }
 
@@ -188,8 +198,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
     try {
       await this.minecraftService.createServer(callback);
     } catch (err) {
-      message.channel.send("Error in server creation!");
-      message.channel.send(err);
+      this.logger.error("Error in server creation.");
+      this.logger.error(err);
+      message.channel.send("Error in server creation! Check application logs.");
     }
   }
 
@@ -199,8 +210,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
     try {
       await this.minecraftService.stopServer();
     } catch (err) {
+      this.logger.error("Error in server deletion.");
+      this.logger.error(err);
       message.channel.send("Error in server deletion!");
-      message.channel.send(err);
       return;
     }
 
@@ -240,5 +252,18 @@ export class DiscordBotService implements OnApplicationBootstrap {
     ${result.stderr}
     \`\`\`
     `);
+  }
+
+  private async setDropletCommand(message: Message, args: string) {
+    console.log(args);
+    const dropletId = parseInt(args);
+    this.minecraftService.setDroplet(dropletId);
+    message.channel.send(`Droplet set to ${dropletId}`);
+  }
+
+  private async runInitCommand(message: Message) {
+    message.channel.send("Running scripts...");
+    await this.minecraftService.initDroplet();
+    message.channel.send("Scripts finished. Check app logs for output.");
   }
 }

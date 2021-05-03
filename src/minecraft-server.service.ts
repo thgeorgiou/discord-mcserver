@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { DigitalOceanService } from "./digital-ocean.service";
 import { NodeSSH, SSHExecCommandResponse } from "node-ssh";
 import { ConfigService } from "@nestjs/config";
+import { sleep } from "./sleep.util";
 
 export type ServerStatus = "up" | "down" | "starting" | "stopping" | "weird";
 
@@ -158,8 +159,13 @@ export class MinecraftServerService {
     return result;
   }
 
+  /** Change the current droplet */
+  public setDroplet(newId: number | undefined) {
+    this.dropletId = newId;
+  }
+
   /** This function continuously runs itself until the droplet is up and accepts connections */
-  private async waitForDroplet() {
+  private waitForDroplet = async () => {
     const res = await this.doService.getDroplet(this.dropletId);
     if (res.status !== "active") {
       this.logger.log(`Droplet ${this.dropletId} not active. Waiting...`);
@@ -178,12 +184,13 @@ export class MinecraftServerService {
     // Keep IP
     this.ipv4 = publicNets[0].ip_address;
 
-    // Initialise droplet with SSH
+    // Initialise droplet with SSH after a small waiting period to let sshd start
+    await sleep(30);
     this.initDroplet();
-  }
+  };
 
   /** Runs the droplet initialization using SSH */
-  private async initDroplet() {
+  public async initDroplet() {
     this.logger.log("Initializing droplet with SSH...");
 
     try {

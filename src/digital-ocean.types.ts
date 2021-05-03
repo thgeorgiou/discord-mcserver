@@ -36,7 +36,7 @@ export interface DropletNetwork {
   ip_address: string;
   netmask: string;
   gateway: string;
-  type: "public" | string;
+  type: "public" | "private";
 }
 
 /**
@@ -46,7 +46,7 @@ export interface Droplet {
   id: number;
   name: string;
   status: "new" | "active" | "off" | "archive";
-  networks: { v4?: DropletNetwork; v6?: DropletNetwork };
+  networks: { v4?: DropletNetwork[]; v6?: DropletNetwork[] };
 }
 
 /**
