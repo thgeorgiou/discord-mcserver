@@ -27,9 +27,6 @@ export class MinecraftServerService {
   /** Path to SSH private key for connecting to the droplet */
   private readonly privateKeyPath: string;
 
-  /** SSH config used for node-ssh */
-  private readonly sshConfig;
-
   /** This function will be called upon successful creation of a new server, if it is defined */
   private creationCallback: () => void = undefined;
 
@@ -47,11 +44,6 @@ export class MinecraftServerService {
     private readonly doService: DigitalOceanService,
   ) {
     this.privateKeyPath = configService.get<string>("SSH_PRIVATEKEY");
-    this.sshConfig = {
-      host: this.ipv4,
-      username: "root",
-      privateKey: this.privateKeyPath,
-    };
   }
 
   /**
@@ -144,7 +136,11 @@ export class MinecraftServerService {
     // If the connection is not provided, connect now
     if (!ssh) {
       ssh = new NodeSSH();
-      ssh.connect(this.sshConfig);
+      await ssh.connect({
+        host: this.ipv4,
+        username: "root",
+        privateKey: this.privateKeyPath,
+      });
       disposeSSH = true;
     }
 
@@ -192,11 +188,15 @@ export class MinecraftServerService {
 
     try {
       const ssh = new NodeSSH();
-      await ssh.connect(this.sshConfig);
+      await ssh.connect({
+        host: this.ipv4,
+        username: "root",
+        privateKey: this.privateKeyPath,
+      });
 
       // Run required commands
-      for (const cmd in initializationScript) {
-        this.runSSHCommand(cmd, ssh, true);
+      for (const cmd of initializationScript) {
+        await this.runSSHCommand(cmd, ssh, true);
       }
 
       this.logger.log("Droplet initialized!");
