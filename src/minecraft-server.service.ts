@@ -106,9 +106,17 @@ export class MinecraftServerService {
   }
 
   /** Forcefully change the current status (for debugging) */
-  public forceStatus(newStatus: ServerStatus) {
+  public async forceStatus(newStatus: ServerStatus) {
     this.logger.warn(`Forcing status to be ${newStatus}`);
     this.status = newStatus;
+
+    if (this.status === "up") {
+      const res = await this.doService.getDroplet(this.dropletId);
+      this.logger.log(`Force status new droplet info: ${JSON.stringify(res)}`);
+      this.ipv4 = res.networks.v4.filter(
+        (net) => net.type === "public",
+      )[0].ip_address;
+    }
   }
 
   /** Returns the current status of the server */
@@ -163,7 +171,8 @@ export class MinecraftServerService {
       return;
     }
 
-    if (!res.networks.v4.ip_address) {
+    const publicNets = res.networks.v4.filter((net) => net.type === "public");
+    if (publicNets.length === 0) {
       this.logger.log(
         `Droplet ${this.dropletId} is active but without network. Waiting...`,
       );
@@ -171,7 +180,7 @@ export class MinecraftServerService {
       return;
     }
     // Keep IP
-    this.ipv4 = res.networks.v4.ip_address;
+    this.ipv4 = publicNets[0].ip_address;
 
     // Initialise droplet with SSH
     this.initDroplet();
