@@ -7,18 +7,11 @@ import {
   ServerStatus,
 } from "./minecraft-server.service";
 
-/** Available bot commands */
-export enum BotCommand {
-  PING = "ping",
-  HELP = "help",
-  BALANCE = "balance",
-  STATUS = "status",
-  START = "start",
-  STOP = "stop",
-  SET_STATUS = "setStatus",
-  SSH = "ssh",
-  SET_DROPLET = "setDroplet",
-  RUN_INIT = "runInitScript",
+/** Represents a bot command */
+export interface BotCommand {
+  help: string;
+  ownerOnly?: boolean;
+  method(message: Message, args: string): void;
 }
 
 /** Command handler, one for each possible value of `BotCommand` */
@@ -34,6 +27,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
   /** Channel (ID) in which the bot is allowed */
   private readonly channelId: string;
 
+  /** User (ID) of the owner, allowed to run the dangerous commands. */
+  private readonly ownerId: string;
+
   /** Discord API client */
   private readonly client: Client;
 
@@ -44,6 +40,7 @@ export class DiscordBotService implements OnApplicationBootstrap {
   ) {
     this.botToken = configService.get<string>("DISCORD_BOT_TOKEN");
     this.channelId = configService.get<string>("DISCORD_BOT_CHANNEL_ID");
+    this.ownerId = configService.get<string>("DISCORD_OWNER_ID");
     this.client = new Client();
 
     // Add event handlers
@@ -78,194 +75,187 @@ export class DiscordBotService implements OnApplicationBootstrap {
     this.logger.log(`Handling command ${commandString}`);
 
     // Handle command
-    switch (commandName as BotCommand) {
-      case BotCommand.PING:
-        this.pingCommand(message);
-        break;
-      case BotCommand.HELP:
-        this.helpCommand(message);
-        break;
-      case BotCommand.BALANCE:
-        this.balanceCommand(message);
-        break;
-      case BotCommand.STATUS:
-        this.statusCommand(message);
-        break;
-      case BotCommand.START:
-        this.startCommand(message);
-        break;
-      case BotCommand.STOP:
-        this.stopCommand(message);
-        break;
-      case BotCommand.SET_STATUS:
-        this.setStatusCommand(message, commandArguments);
-        break;
-      case BotCommand.SSH:
-        this.sshCommand(message, commandArguments);
-        break;
-      case BotCommand.SET_DROPLET:
-        this.setDropletCommand(message, commandArguments);
-        break;
-      case BotCommand.RUN_INIT:
-        this.runInitCommand(message);
-        break;
-      default:
-        this.logger.log(`Ignoring unknown command ${commandString}.`);
-        message.channel.send(`:warning: Unknown command "${commandString}"`);
+    if (commandName in this.commands) {
+      const command = this.commands[commandName];
+      if (command.ownerOnly && message.author.id !== this.ownerId) {
+        message.channel.send(
+          ":no_entry: Only the admin is allowed to execute this command.",
+        );
         return;
+      }
+
+      this.commands[commandName].method(message, commandArguments);
+    } else {
+      this.logger.log(`Ignoring unknown command ${commandName}.`);
+      message.channel.send(`:warning: Unknown command "${commandName}"`);
     }
   };
 
-  /** Responds with `pong`. */
-  private pingCommand(message: Message) {
-    message.channel.send("Pong!");
-  }
-
-  private helpCommand(message: Message) {
-    message.channel.send(`
-    **Bot commands**:
-    - \`help\`: Displays this message.
-    - \`ping\`: Responds with "Pong!".
-    - \`balance\`: Display the current account balance ($).
-    - \`status\`: Returns the current server status (w/ IPv4)
-    - \`start\`: Starts a new minecraft server.
-    - \`stop\`: Stops the minecraft server if it is running.
-    - \`setStatus\`: Forcefully change current status. **Very dangerous!**
-    - \`ssh\`: Run a command on the server with SSH **Very dangerous!**
-    - \`setDroplet\`: Sets the current droplet ID **Very dangerous!**
-    - \`runInitScript\`: Runs the initialization script again **Very dangerous!**
-    `);
-  }
-
-  private async balanceCommand(message: Message) {
-    const balance = await this.doService.getAccountBalance();
-    const embed = new MessageEmbed()
-      .setTitle("Account Balance :moneybag:")
-      .addFields(
-        {
-          name: "Current month usage",
-          value: `$${balance.month_to_date_usage}`,
-        },
-        {
-          name: "Current month balance",
-          value: `$${balance.month_to_date_balance}`,
-        },
-        {
-          name: "Total balance",
-          value: `$${balance.account_balance}`,
-        },
-      );
-    message.channel.send(embed);
-  }
-
-  private async statusCommand(message: Message) {
-    const status = this.minecraftService.getStatus();
-    const embed = new MessageEmbed();
-    embed.setTitle("Minecraft Server Status").addFields(
-      {
-        name: "Status",
-        value: status.status,
+  private readonly commands: Record<string, BotCommand> = {
+    help: {
+      help: "Displays this message.",
+      method: (message) => {
+        let response = "**Bot commands**:\n";
+        for (const [name, command] of Object.entries(this.commands)) {
+          response += `- \`${name}\`: ${command.help}\n`;
+        }
+        message.channel.send(response);
       },
-      {
-        name: "IPv4",
-        value: status.ipv4,
+    },
+    ping: {
+      help: 'Responds with "Pong!"',
+      method: (message) => {
+        message.channel.send("Pong!");
       },
-      {
-        name: "Droplet ID",
-        value: status.dropletId,
+    },
+    balance: {
+      help: "Displays the current account balance ($)",
+      method: async (message) => {
+        const balance = await this.doService.getAccountBalance();
+        const embed = new MessageEmbed()
+          .setTitle("Account Balance :moneybag:")
+          .addFields(
+            {
+              name: "Current month usage",
+              value: `$${balance.month_to_date_usage}`,
+            },
+            {
+              name: "Current month balance",
+              value: `$${balance.month_to_date_balance}`,
+            },
+            {
+              name: "Total balance",
+              value: `$${balance.account_balance}`,
+            },
+          );
+        message.channel.send(embed);
       },
-    );
+    },
+    status: {
+      help: "Displays the current server status and the IPv4",
+      method: (message) => {
+        const status = this.minecraftService.getStatus();
+        const embed = new MessageEmbed();
+        embed.setTitle("Minecraft Server Status").addFields(
+          {
+            name: "Status",
+            value: status.status,
+          },
+          {
+            name: "IPv4",
+            value: status.ipv4,
+          },
+          {
+            name: "Droplet ID",
+            value: status.dropletId,
+          },
+        );
 
-    switch (status.status) {
-      case "up":
-        embed.setColor("GREEN");
-        break;
-      case "down":
-        embed.setColor("RED");
-        break;
-      default:
-        embed.setColor("ORANGE");
-    }
+        switch (status.status) {
+          case "up":
+            embed.setColor("GREEN");
+            break;
+          case "down":
+            embed.setColor("RED");
+            break;
+          default:
+            embed.setColor("ORANGE");
+        }
 
-    message.channel.send(embed);
-  }
+        message.channel.send(embed);
+      },
+    },
+    start: {
+      help: "Starts a new minecraft server",
+      method: async (message) => {
+        const callback = () => {
+          this.commands["status"].method(message, undefined);
+        };
+        message.channel.send(
+          "Starting server... This will take approximately 3 minutes.",
+        );
+        try {
+          await this.minecraftService.createServer(callback);
+        } catch (err) {
+          this.logger.error("Error in server creation.");
+          this.logger.error(err);
+          message.channel.send(
+            "Error in server creation! Check application logs.",
+          );
+        }
+      },
+    },
+    stop: {
+      help: "Stops the currently running minecraft server",
+      method: async (message) => {
+        message.channel.send("Stopping server...");
 
-  private async startCommand(message: Message) {
-    const callback = () => {
-      this.statusCommand(message);
-    };
-    message.channel.send(
-      "Starting server... This will take approximately 3 minutes.",
-    );
-    try {
-      await this.minecraftService.createServer(callback);
-    } catch (err) {
-      this.logger.error("Error in server creation.");
-      this.logger.error(err);
-      message.channel.send("Error in server creation! Check application logs.");
-    }
-  }
+        try {
+          await this.minecraftService.stopServer();
+        } catch (err) {
+          this.logger.error("Error in server deletion.");
+          this.logger.error(err);
+          message.channel.send("Error in server deletion!");
+          return;
+        }
 
-  private async stopCommand(message: Message) {
-    message.channel.send("Stopping server...");
-
-    try {
-      await this.minecraftService.stopServer();
-    } catch (err) {
-      this.logger.error("Error in server deletion.");
-      this.logger.error(err);
-      message.channel.send("Error in server deletion!");
-      return;
-    }
-
-    message.channel.send("Stopped server!");
-  }
-
-  private async setStatusCommand(message: Message, args: string) {
-    if (
-      args !== "up" &&
-      args !== "down" &&
-      args !== "starting" &&
-      args !== "stopping" &&
-      args !== "weird"
-    ) {
-      message.channel.send(`Unknown status ${args}`);
-    }
-    this.minecraftService.forceStatus(args as ServerStatus);
-    message.channel.send(`Set status to ${args}`);
-  }
-
-  private async sshCommand(message: Message, args: string) {
-    const result = await this.minecraftService.runSSHCommand(
-      args,
-      undefined,
-      true,
-    );
-    message.channel.send(`
-    Exit code: \`${result.code}\`
-
-    STDOUT:
-    \`\`\`
-    ${result.stdout}
-    \`\`\`
-
-    STDERR:
-    \`\`\`
-    ${result.stderr}
-    \`\`\`
-    `);
-  }
-
-  private async setDropletCommand(message: Message, args: string) {
-    console.log(args);
-    const dropletId = parseInt(args);
-    this.minecraftService.setDroplet(dropletId);
-    message.channel.send(`Droplet set to ${dropletId}`);
-  }
-
-  private async runInitCommand(message: Message) {
-    message.channel.send("Running scripts...");
-    await this.minecraftService.initDroplet();
-    message.channel.send("Scripts finished. Check app logs for output.");
-  }
+        message.channel.send("Stopped server!");
+      },
+    },
+    setStatus: {
+      help: "Overrides the current status (**dangerous**)",
+      method: (message, args) => {
+        if (
+          args !== "up" &&
+          args !== "down" &&
+          args !== "starting" &&
+          args !== "stopping" &&
+          args !== "weird"
+        ) {
+          message.channel.send(`Unknown status ${args}`);
+        }
+        this.minecraftService.forceStatus(args as ServerStatus);
+        message.channel.send(`Set status to ${args}`);
+      },
+    },
+    ssh: {
+      help: "Runs a command on the Droplet using SSH (**dangerous**)",
+      method: async (message, args) => {
+        const result = await this.minecraftService.runSSHCommand(
+          args,
+          undefined,
+          true,
+        );
+        message.channel.send(`STDOUT:\n`);
+        for (let i = 0; i < result.stdout.length; i += 2000) {
+          message.channel.send(
+            `\`\`\`\n${result.stdout.substr(i, i + 2000)}\n\`\`\``,
+          );
+        }
+        message.channel.send(`STDERR:\n`);
+        for (let i = 0; i < result.stdout.length; i += 2000) {
+          message.channel.send(
+            `\`\`\`\n${result.stderr.substr(i, i + 2000)}\n\`\`\``,
+          );
+        }
+      },
+    },
+    setDroplet: {
+      help: "Sets the current droplet ID (**dangerous**)",
+      method: async (message, args) => {
+        const dropletId = parseInt(args);
+        this.minecraftService.setDroplet(dropletId);
+        message.channel.send(`Droplet set to ${dropletId}`);
+      },
+    },
+    runInit: {
+      help:
+        "Runs the initialisation script (ie. install minecraft) on the current droplet (**dangerous**)",
+      method: async (message) => {
+        message.channel.send("Running scripts...");
+        await this.minecraftService.initDroplet();
+        message.channel.send("Scripts finished. Check app logs for output.");
+      },
+    },
+  };
 }
