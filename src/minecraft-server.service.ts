@@ -15,6 +15,8 @@ const initializationScript = [
   "apt install openjdk-11-jre-headless -y",
   "ufw allow 25565/tcp",
   "ufw allow 25565/udp",
+  "ufw allow 80/tcp",
+  "/mnt/discord_mcserver/dynamic_dns.sh",
   "useradd --home-dir /mnt/discord_mcserver/minecraft --uid=10001 minecraft",
   "cp /mnt/discord_mcserver/minecraft.service /etc/systemd/system/minecraft.service",
   "systemctl daemon-reload",
