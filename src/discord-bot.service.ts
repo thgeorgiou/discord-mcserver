@@ -30,6 +30,9 @@ export class DiscordBotService implements OnApplicationBootstrap {
   /** User (ID) of the owner, allowed to run the dangerous commands. */
   private readonly ownerId: string;
 
+  /** Dynamic domain pointing to this server */
+  private readonly domain: string;
+
   /** Discord API client */
   private readonly client: Client;
 
@@ -41,6 +44,7 @@ export class DiscordBotService implements OnApplicationBootstrap {
     this.botToken = configService.get<string>("DISCORD_BOT_TOKEN");
     this.channelId = configService.get<string>("DISCORD_BOT_CHANNEL_ID");
     this.ownerId = configService.get<string>("DISCORD_OWNER_ID");
+    this.domain = configService.get<string>("DOMAIN_NAME");
     this.client = new Client();
 
     // Add event handlers
@@ -149,6 +153,8 @@ export class DiscordBotService implements OnApplicationBootstrap {
             name: "Droplet ID",
             value: status.dropletId,
           },
+          { name: "Domain", value: this.domain },
+          { name: "Map", value: `[here](http://${this.domain})` },
         );
 
         switch (status.status) {
