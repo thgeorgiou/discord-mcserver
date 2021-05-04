@@ -12,15 +12,17 @@ export type ServerStatus = "up" | "down" | "starting" | "stopping" | "weird";
 const initializationScript = [
   "mkdir -p /mnt/discord_mcserver",
   "mount /dev/sda /mnt/discord_mcserver",
-  "apt install openjdk-11-jre-headless -y",
+  "apt install openjdk-11-jre-headless python3-numpy python3-dev python3-pil python3-numpy nginx -y",
   "ufw allow 25565/tcp",
   "ufw allow 25565/udp",
   "ufw allow 80/tcp",
   "/mnt/discord_mcserver/dynamic_dns.sh",
   "useradd --home-dir /mnt/discord_mcserver/minecraft --uid=10001 minecraft",
   "cp /mnt/discord_mcserver/minecraft.service /etc/systemd/system/minecraft.service",
+  "cp /mnt/discord_mcserver/nginx_default /etc/nginx/sites-enabled/default",
   "systemctl daemon-reload",
   "systemctl enable --now minecraft.service",
+  "systemctl enable --now nginx.service",
 ];
 
 @Injectable()
