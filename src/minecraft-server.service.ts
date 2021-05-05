@@ -23,6 +23,7 @@ const initializationScript = [
   "systemctl daemon-reload",
   "systemctl enable --now minecraft.service",
   "systemctl enable --now nginx.service",
+  "systemctl reload nginx.service"
 ];
 
 @Injectable()
@@ -93,8 +94,18 @@ export class MinecraftServerService {
     this.logger.log("Stopping droplet!");
     this.status = "stopping";
 
+    this.logger.log("Running RCON save command...");
+    await this.runRCONCommand("save");
+    await sleep(10);
+
     this.logger.log("Running 'systemctl stop minecraft'...");
     await this.runSSHCommand("systemctl stop minecraft", undefined, true);
+	await sleep(10);
+
+	this.logger.log("Running 'poweroff'")
+	await this.runSSHCommand("poweroff", undefined, true);
+	await sleep(60);
+    
     this.logger.log(`Deleting droplet with ID = ${this.dropletId}`);
     await this.doService.deleteDroplet(this.dropletId);
 
