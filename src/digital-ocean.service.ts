@@ -87,7 +87,9 @@ export class DigitalOceanService {
     }
 
     this.logger.error(
-      `Could not create droplet: ${JSON.stringify(response.data)}`,
+      `Could not create droplet (status ${response.status}): ${JSON.stringify(
+        response.data,
+      )}`,
     );
     return undefined;
   }

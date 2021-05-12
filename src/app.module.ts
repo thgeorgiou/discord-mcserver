@@ -5,7 +5,10 @@ import { DiscordBotService } from "./discord-bot.service";
 import { MinecraftServerService } from "./minecraft-server.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), HttpModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    HttpModule.register({ validateStatus: () => true }),
+  ],
   controllers: [],
   providers: [DiscordBotService, DigitalOceanService, MinecraftServerService],
 })
