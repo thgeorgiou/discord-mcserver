@@ -12,7 +12,7 @@ export type ServerStatus = "up" | "down" | "starting" | "stopping" | "weird";
 const initializationScript = [
   "mkdir -p /mnt/discord_mcserver",
   "mount /dev/sda /mnt/discord_mcserver",
-  "apt install openjdk-11-jre-headless python3-numpy python3-dev python3-pil python3-numpy nginx -y",
+  "apt install openjdk-17-jre-headless python3-numpy python3-dev python3-pil python3-numpy nginx -y",
   "ufw allow 25565/tcp",
   "ufw allow 25565/udp",
   "ufw allow 80/tcp",
@@ -23,7 +23,7 @@ const initializationScript = [
   "systemctl daemon-reload",
   "systemctl enable --now minecraft.service",
   "systemctl enable --now nginx.service",
-  "systemctl reload nginx.service"
+  "systemctl reload nginx.service",
 ];
 
 @Injectable()
@@ -100,12 +100,12 @@ export class MinecraftServerService {
 
     this.logger.log("Running 'systemctl stop minecraft'...");
     await this.runSSHCommand("systemctl stop minecraft", undefined, true);
-	await sleep(10);
+    await sleep(10);
 
-	this.logger.log("Running 'poweroff'")
-	await this.runSSHCommand("poweroff", undefined, true);
-	await sleep(60);
-    
+    this.logger.log("Running 'poweroff'");
+    await this.runSSHCommand("poweroff", undefined, true);
+    await sleep(60);
+
     this.logger.log(`Deleting droplet with ID = ${this.dropletId}`);
     await this.doService.deleteDroplet(this.dropletId);
 
